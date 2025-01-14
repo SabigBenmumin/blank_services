@@ -1,0 +1,57 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+serverenv/
+workerenv/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Test results
+*.coverage
+.tox/
+.nox/
+
+# Editor and IDE files
+*.swp
+*.swo
+.idea/
+.vscode/
+*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Backup files
+*.bak
+*.tmp
+~$*
+
+# Other specific directories
+node_modules/
+coverage/
+htmlcov/
+
+# Ignore all files in the uploads directory
+uploads/*
+
+# Do not ignore the uploads directory itself
+!uploads/

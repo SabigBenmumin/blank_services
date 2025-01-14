@@ -1,0 +1,4 @@
+pika
+fastapi
+uvicorn
+python-multipart

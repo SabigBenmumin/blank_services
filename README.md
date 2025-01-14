@@ -43,7 +43,7 @@ pip install -r requirements/workerenv_requirements.txt
 ## **run project**
 This project requires running two separate terminals for the server and worker components.
 > [!IMPORTANT]
-> Ensure that the 'uploads' directory exists in your project. If it does not, you must create the directory.
+> Ensure that the `uploads` directory exists in your project. If it does not, you must create the directory.
 ```bash
 mkdir uploads
 ```

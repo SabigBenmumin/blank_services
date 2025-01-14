@@ -1,5 +1,5 @@
 # BlankSpace Services API
-## preparation environment
+## **prepare the environment**
 ### create virtual environments
 **install** `virtualenv` (virtual environment manager)
 ```bash
@@ -39,4 +39,29 @@ pip install -r requirements/open3d_requirements.txt
 - install package from [worker environment](requirements/workerenv_requirements.txt)
 ```bash
 pip install -r requirements/workerenv_requirements.txt
+```
+## **run project**
+This project requires running two separate terminals for the server and worker components.
+> [!IMPORTANT]
+> Critical information that needs attention.
+
+### Worker Setup
+1. Activate the worker environment:
+   ```bash
+   source workerenv/bin/activate   # For Unix/Linux/MacOS
+   # OR
+   ./workerenv\Scripts\activate      # For Windows
+2. Run the worker script:
+```bash
+python worker.py
+```
+### Server Setup
+1. Activate the server environment:
+   ```bash
+   source serverenv/bin/activate   # For Unix/Linux/MacOS
+   # OR
+   ./serverenv\Scripts\activate      # For Windows
+2. Run te server script
+```bash
+uvicorn server:app --reload
 ```

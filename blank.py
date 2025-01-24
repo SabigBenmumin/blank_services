@@ -57,7 +57,7 @@ def calculate_grid(points, x_min, y_min, col_width, row_width, n_rows, n_cols):
             ]
 
             if cell_points.size > 0:
-                avg_alt_mat[row, col] = np.mean(cell_points[:, 2])
+                avg_alt_mat[row, col] = np.median(cell_points[:, 2])
                 point_counts[row, col] = cell_points.shape[0]
 
     return avg_alt_mat, point_counts

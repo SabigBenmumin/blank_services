@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from pathlib import Path
 import shutil
 import uuid
+from fastapi.middleware.cors import CORSMiddleware
 
 UPLOAD_DIR = Path("uploads")
 
@@ -63,6 +64,14 @@ class RPCClient(object):
 rpc_client = RPCClient()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/uploadfiles/")
 async def create_upload_file(

@@ -1,4 +1,5 @@
 import pika
+import time
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from pathlib import Path
@@ -7,30 +8,43 @@ import uuid
 
 UPLOAD_DIR = Path("uploads")
 
-
 class RPCClient(object):
     def __init__(self):
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters("localhost")
-        )
-        self.channel = self.connection.channel()
-
-        result = self.channel.queue_declare(queue="", exclusive=True)
-        self.callback_queue = result.method.queue
-
-        self.channel.basic_consume(
-            queue=self.callback_queue,
-            on_message_callback=self.on_response,
-            auto_ack=True
-        )
+        self.connection = None
+        self.channel = None
+        self.callback_queue = None
         self.response = None
         self.corr_id = None
-    
+        self.connect()
+
+    def connect(self):
+        while True:
+            try:
+                self.connection = pika.BlockingConnection(
+                    pika.ConnectionParameters("localhost")
+                )
+                self.channel = self.connection.channel()
+
+                result = self.channel.queue_declare(queue="", exclusive=True)
+                self.callback_queue = result.method.queue
+
+                self.channel.basic_consume(
+                    queue=self.callback_queue,
+                    on_message_callback=self.on_response,
+                    auto_ack=True
+                )
+                break
+            except pika.exceptions.AMQPConnectionError:
+                print("Connection failed, retrying in 5 seconds...")
+                time.sleep(5)
+
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:
             self.response = body
 
     def call(self, path):
+        if self.connection.is_closed or self.channel.is_closed:
+            self.connect()
         self.response = None
         self.corr_id = str(uuid.uuid4())
         self.channel.basic_publish(
@@ -64,7 +78,14 @@ async def create_upload_file(
             shutil.copyfileobj(target_file.file, buffer)
         
         response = rpc_client.call(f"{str(source_file_path)},{str(target_file_path)}")
-        # rpc_client.call(f"{str(source_file_path)}, {str(target_file_path)}")
-        return JSONResponse(content={"files": (source_file.filename, target_file.filename), "status": "file uploaded successfully", "worker_response": response})
+        return JSONResponse(content={
+            "files": (source_file.filename, target_file.filename), 
+            "status": "file uploaded successfully", 
+            "worker_response_volumeChange": response
+        })
     except Exception as e:
-        return JSONResponse(content={"files": (source_file.filename, target_file.filename), "status": "file upload failed", "error": str(e)})
+        return JSONResponse(content={
+            "files": (source_file.filename, target_file.filename), 
+            "status": "file upload failed", 
+            "error": str(e)
+        })

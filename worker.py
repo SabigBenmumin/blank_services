@@ -10,11 +10,14 @@ channel.queue_declare(queue='rpc_queue')
 def on_request(ch, method, props, body):
     filepaths = body.decode('utf-8')
     source_path, target_path = filepaths.split(",")
-    response = f" [.] Received {source_path} and {target_path}"
     print(f" [.] Received filepaths")
     print(f"\tsrc: {source_path}")
     print(f"\ttgt: {target_path}")
-    print(f"\tCalculating volume change: {calculator(source_path, target_path)}")
+    volume_change = calculator(source_path, target_path)
+    # print(f"\tCalculating volume change: {calculator(source_path, target_path)}")
+    print(f"\tCalculating volume change: {volume_change}")
+    # response = f" [.] Received {source_path} and {target_path}",volume_change
+    response = str(volume_change)
 
     ch.basic_publish(exchange='',
                         routing_key=props.reply_to,

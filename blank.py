@@ -62,7 +62,7 @@ def calculate_grid(points, x_min, y_min, col_width, row_width, n_rows, n_cols):
 
     return avg_alt_mat, point_counts
 
-def calculator(source_path, target_path):
+def calculator(source_path, target_path, grid_size=1):
     src_pcd = get_pcd(source_path)
     tgt_pcd = get_pcd(target_path)
 
@@ -78,8 +78,8 @@ def calculator(source_path, target_path):
     gbl_x_min, gbl_x_max = min(src_x_min, tgt_x_min), max(src_x_max, tgt_x_max)
     gbl_y_min, gbl_y_max = min(src_y_min, tgt_y_min), max(src_y_max, tgt_y_max)
 
-    COL_WIDTH = 1
-    ROW_WIDTH = 1
+    COL_WIDTH = grid_size
+    ROW_WIDTH = grid_size
 
     n_cols = math.ceil((gbl_x_max - gbl_x_min) / COL_WIDTH)
     n_rows = math.ceil((gbl_y_max - gbl_y_min) / ROW_WIDTH)

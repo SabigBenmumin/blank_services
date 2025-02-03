@@ -1,6 +1,6 @@
 import pika
 import time
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from pathlib import Path
 import shutil
@@ -73,10 +73,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    rpc_client.connection.close()
+
 @app.post("/uploadfiles/")
 async def create_upload_file(
         source_file: UploadFile = File(...), 
-        target_file: UploadFile = File(...)
+        target_file: UploadFile = File(...),
+        grid_size: float = Form(1)
     ):
     try:
         source_file_path = UPLOAD_DIR / source_file.filename
@@ -86,7 +91,7 @@ async def create_upload_file(
         with target_file_path.open("wb") as buffer:
             shutil.copyfileobj(target_file.file, buffer)
         
-        response = rpc_client.call(f"{str(source_file_path)},{str(target_file_path)}")
+        response = rpc_client.call(f"{str(source_file_path)},{str(target_file_path)},{grid_size}")
         return JSONResponse(content={
             "files": (source_file.filename, target_file.filename), 
             "status": "file uploaded successfully", 
@@ -95,6 +100,6 @@ async def create_upload_file(
     except Exception as e:
         return JSONResponse(content={
             "files": (source_file.filename, target_file.filename), 
-            "status": "file upload failed", 
+            "status": "file upload failed, please try again",
             "error": str(e)
         })

@@ -23,11 +23,12 @@ def on_request(ch, method, props, body):
     # response = f" [.] Received {source_path} and {target_path}",volume_change
     response = str(volume_change)
 
-    ch.basic_publish(exchange='',
-                        routing_key=props.reply_to,
-                        properties=pika.BasicProperties(correlation_id = props.correlation_id),
-                        body=response
-                    )
+    ch.basic_publish(
+        exchange='',
+        routing_key=props.reply_to,
+        properties=pika.BasicProperties(correlation_id = props.correlation_id),
+        body=response
+    )
     ch.basic_ack(delivery_tag=method.delivery_tag)
     acktime = time.time()
     elapsed_time = acktime - start

@@ -81,7 +81,7 @@ async def shutdown_event():
 async def create_upload_file(
         source_file: UploadFile = File(...), 
         target_file: UploadFile = File(...),
-        grid_size: float = Form(1)
+        grid_size: float = Form(0.1)
     ):
     try:
         source_file_path = UPLOAD_DIR / source_file.filename

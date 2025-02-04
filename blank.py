@@ -3,6 +3,8 @@ import numpy as np
 import open3d as o3d
 import math
 import multiprocessing
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 from scipy.spatial import cKDTree
 import tqdm
 
@@ -62,7 +64,51 @@ def calculate_grid(points, x_min, y_min, col_width, row_width, n_rows, n_cols):
 
     return avg_alt_mat, point_counts
 
-def calculator(source_path, target_path, grid_size=1):
+def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease, result_name='result', dpi=300):
+    norm = Normalize(vmin=gbl_z_min, vmax=gbl_z_max)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    axes[1, 1].axis('off')
+    # Subplot 1: Average Altitude (Source)
+    im1 = axes[0, 0].imshow(src_avg_alt_mat, cmap='viridis_r', norm=norm)
+    axes[0, 0].set_title('Average Altitude (Time Series1)')
+    axes[0, 0].set_xlabel(f'Width {width_meters:.2f} meters')
+    axes[0, 0].set_ylabel(f'Height {height_meters:.2f} meters')
+
+# Subplot 2: Average Altitude (Target)
+    im2 = axes[0, 1].imshow(tgt_avg_alt_mat, cmap='viridis_r', norm=norm)
+    axes[0, 1].set_title('Average Altitude (Time Series2)')
+    axes[0, 1].set_xlabel(f'Width {width_meters:.2f} meters')
+    axes[0, 1].set_ylabel(f'Height {height_meters:.2f} meters')
+
+# Subplot 3: Delta Altitude (Volume Change)
+    im3 = axes[1, 0].imshow(delta_alt_mat, cmap='viridis_r', norm=norm)
+    axes[1, 0].set_title('Delta Altitude (Volume Change)')
+    axes[1, 0].set_xlabel(f'Width {width_meters:.2f} meters')
+    axes[1, 0].set_ylabel(f'Height {height_meters:.2f} meters')
+
+# Subplot 4: Period of change
+    threshold_min = -0.1
+    threshold_max = 0.1
+    norm1 = Normalize(vmin=threshold_min, vmax=threshold_max)
+    im4 = axes[1, 1].imshow(delta_alt_mat, cmap='bwr', norm=norm1)
+    axes[1, 1].set_title('Period of change')
+    axes[1, 1].set_xlabel('Width (meters)')
+    axes[1, 1].set_ylabel('Height (meters)')
+    axes[1, 1].text(0.5, -0.15, f'> 0.1 m : Sand Increase(Red)\n< -0.1 m : Sand Decrease(Blue)\n Sand Volume Increase: {sand_increase:.2f} m³\nSand Volume Decrease: {sand_decrease:.2f} m³',
+        fontsize=12, ha='center', va='top', transform=axes[1, 1].transAxes)
+
+# Add colorbars for each graph
+    fig.colorbar(im1, ax=axes[0, 0])
+    fig.colorbar(im2, ax=axes[0, 1])
+    fig.colorbar(im3, ax=axes[1, 0])
+    fig.colorbar(im4, ax=axes[1, 1])
+
+    plt.tight_layout()
+    plt.title("Volume Change Analysis")
+    plt.savefig(f'result_store/{result_name}.png', dpi=dpi)
+    # plt.show()
+
+def calculator(source_path, target_path, grid_size=0.1):
     src_pcd = get_pcd(source_path)
     tgt_pcd = get_pcd(target_path)
 
@@ -72,8 +118,10 @@ def calculator(source_path, target_path, grid_size=1):
     #Bounding box and grid setup
     src_x_min, src_x_max = min(src_points[:, 0]), max(src_points[:, 0])
     src_y_min, src_y_max = min(src_points[:, 1]), max(src_points[:, 1])
+    src_z_min, src_z_max = min(src_points[:, 2]), max(src_points[:, 2])
     tgt_x_min, tgt_x_max = min(tgt_points[:, 0]), max(tgt_points[:, 0])
     tgt_y_min, tgt_y_max = min(tgt_points[:, 1]), max(tgt_points[:, 1])
+    tgt_z_min, tgt_z_max = min(tgt_points[:, 2]), max(tgt_points[:, 2])
 
     gbl_x_min, gbl_x_max = min(src_x_min, tgt_x_min), max(src_x_max, tgt_x_max)
     gbl_y_min, gbl_y_max = min(src_y_min, tgt_y_min), max(src_y_max, tgt_y_max)
@@ -102,9 +150,18 @@ def calculator(source_path, target_path, grid_size=1):
     delta_alt_mat = tgt_avg_alt_mat - src_avg_alt_mat
 
     cell_area = COL_WIDTH * ROW_WIDTH
-    volume_change = (np.array(tgt_avg_alt_mat) - np.array(src_avg_alt_mat)) * cell_area
+    # volume_change = (np.array(tgt_avg_alt_mat) - np.array(src_avg_alt_mat)) * cell_area
+    volume_change = (delta_alt_mat) * cell_area
 
     volume_change = np.nan_to_num(volume_change)
     total_volume_change = np.sum(volume_change)
+
+    gbl_z_min = min(src_z_min, tgt_z_min)
+    gbl_z_max = max(src_z_max, tgt_z_max)
+    width_meters = gbl_x_max - gbl_x_min
+    height_meters = gbl_y_max - gbl_y_min
+    sand_increase = np.sum(delta_alt_mat[delta_alt_mat > 0.1] * cell_area)
+    sand_decrease = np.sum(delta_alt_mat[delta_alt_mat < -0.1] * cell_area)
+    plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease)
 
     return total_volume_change

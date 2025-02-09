@@ -11,17 +11,18 @@ channel.queue_declare(queue='rpc_queue')
 
 def on_request(ch, method, props, body):
     filepaths = body.decode('utf-8')
-    source_path, target_path, grid_size = filepaths.split(",")
+    source_path, target_path, grid_size, task_id = filepaths.split(",")
     print(f" [.] Received filepaths")
     start = time.time()
     print(f"\tsrc: {source_path}")
     print(f"\ttgt: {target_path}")
     print(f"\tgrid_size: {grid_size}")
-    volume_change = calculator(source_path, target_path, float(grid_size))
+    volume_change, sand_increase, sand_decrease = calculator(source_path, target_path, task_id, float(grid_size))
     # print(f"\tCalculating volume change: {calculator(source_path, target_path)}")
     print(f"\tCalculating volume change: {volume_change}")
     # response = f" [.] Received {source_path} and {target_path}",volume_change
-    response = str(volume_change)
+    # response = str(volume_change)+","+ result_plot_path
+    response = f'{volume_change},{sand_increase},{sand_decrease}'
 
     ch.basic_publish(
         exchange='',

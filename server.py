@@ -1,11 +1,13 @@
 import pika
 import time
-from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, UploadFile, Form, Query
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 import shutil
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
+import os
+# import redis
 
 UPLOAD_DIR = Path("uploads")
 
@@ -64,6 +66,7 @@ class RPCClient(object):
 rpc_client = RPCClient()
 
 app = FastAPI()
+# redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 app.add_middleware(
     CORSMiddleware,
@@ -84,6 +87,7 @@ async def create_upload_file(
         grid_size: float = Form(0.1)
     ):
     try:
+        task_id = str(uuid.uuid4())
         source_file_path = UPLOAD_DIR / source_file.filename
         target_file_path = UPLOAD_DIR / target_file.filename
         with source_file_path.open("wb") as buffer:
@@ -91,11 +95,15 @@ async def create_upload_file(
         with target_file_path.open("wb") as buffer:
             shutil.copyfileobj(target_file.file, buffer)
         
-        response = rpc_client.call(f"{str(source_file_path)},{str(target_file_path)},{grid_size}")
+        response = rpc_client.call(f"{str(source_file_path)},{str(target_file_path)},{grid_size},{task_id}")
+        total_volume_change, sand_increase, sand_decrease = response.split(",")
         return JSONResponse(content={
+            "task_id": task_id,
             "files": (source_file.filename, target_file.filename), 
             "status": "file uploaded successfully", 
-            "worker_response_volumeChange": response
+            "worker_response_volumeChange": total_volume_change,
+            "sand_increase": sand_increase,
+            "sand_decrease": sand_decrease
         })
     except Exception as e:
         return JSONResponse(content={
@@ -103,3 +111,13 @@ async def create_upload_file(
             "status": "file upload failed, please try again",
             "error": str(e)
         })
+    
+
+@app.get("/downloadplot/{task_id}")
+async def download_resultplot(task_id: str ,
+                              export_name: str = Query("undefined")
+                              ):
+    path_for_test = f"./result_store/result_{task_id}.png"
+    async def remove_file():
+        os.remove(path_for_test)
+    return FileResponse(path_for_test, media_type="image/png", filename=f"{export_name}.png", background=remove_file)

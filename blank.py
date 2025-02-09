@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from scipy.spatial import cKDTree
 import tqdm
+import redis
 
 def read_last_file(file_path):
     las = laspy.read(file_path)
@@ -64,7 +65,7 @@ def calculate_grid(points, x_min, y_min, col_width, row_width, n_rows, n_cols):
 
     return avg_alt_mat, point_counts
 
-def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease, result_name='result', dpi=300):
+def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease, task_id, result_name='result', dpi=300):
     norm = Normalize(vmin=gbl_z_min, vmax=gbl_z_max)
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     axes[1, 1].axis('off')
@@ -73,18 +74,21 @@ def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z
     axes[0, 0].set_title('Average Altitude (Time Series1)')
     axes[0, 0].set_xlabel(f'Width {width_meters:.2f} meters')
     axes[0, 0].set_ylabel(f'Height {height_meters:.2f} meters')
+    axes[0, 0].invert_yaxis()
 
 # Subplot 2: Average Altitude (Target)
     im2 = axes[0, 1].imshow(tgt_avg_alt_mat, cmap='viridis_r', norm=norm)
     axes[0, 1].set_title('Average Altitude (Time Series2)')
     axes[0, 1].set_xlabel(f'Width {width_meters:.2f} meters')
     axes[0, 1].set_ylabel(f'Height {height_meters:.2f} meters')
+    axes[0, 1].invert_yaxis()
 
 # Subplot 3: Delta Altitude (Volume Change)
     im3 = axes[1, 0].imshow(delta_alt_mat, cmap='viridis_r', norm=norm)
     axes[1, 0].set_title('Delta Altitude (Volume Change)')
     axes[1, 0].set_xlabel(f'Width {width_meters:.2f} meters')
     axes[1, 0].set_ylabel(f'Height {height_meters:.2f} meters')
+    axes[1, 0].invert_yaxis()
 
 # Subplot 4: Period of change
     threshold_min = -0.1
@@ -96,6 +100,7 @@ def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z
     axes[1, 1].set_ylabel('Height (meters)')
     axes[1, 1].text(0.5, -0.15, f'> 0.1 m : Sand Increase(Red)\n< -0.1 m : Sand Decrease(Blue)\n Sand Volume Increase: {sand_increase:.2f} m³\nSand Volume Decrease: {sand_decrease:.2f} m³',
         fontsize=12, ha='center', va='top', transform=axes[1, 1].transAxes)
+    axes[1, 1].invert_yaxis()
 
 # Add colorbars for each graph
     fig.colorbar(im1, ax=axes[0, 0])
@@ -105,10 +110,15 @@ def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z
 
     plt.tight_layout()
     plt.title("Volume Change Analysis")
-    plt.savefig(f'result_store/{result_name}.png', dpi=dpi)
-    # plt.show()
+    result_path = f'/mnt/d/blankspace/blankservices/result_store/{result_name}_{task_id}.png'
+    # result_path_windows = f'D:/blankspace/blankservices/result_store/{result_name}_{task_id}.png'
 
-def calculator(source_path, target_path, grid_size=0.1):
+    plt.savefig(result_path, dpi=dpi)
+
+    
+    # return result_path_windows
+
+def calculator(source_path, target_path, task_id, grid_size=0.1):
     src_pcd = get_pcd(source_path)
     tgt_pcd = get_pcd(target_path)
 
@@ -162,6 +172,6 @@ def calculator(source_path, target_path, grid_size=0.1):
     height_meters = gbl_y_max - gbl_y_min
     sand_increase = np.sum(delta_alt_mat[delta_alt_mat > 0.1] * cell_area)
     sand_decrease = np.sum(delta_alt_mat[delta_alt_mat < -0.1] * cell_area)
-    plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease)
+    result_path = plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease, task_id)
 
-    return total_volume_change
+    return total_volume_change, sand_increase, sand_decrease

@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 from scipy.spatial import cKDTree
 import tqdm
-import redis
 
 def read_last_file(file_path):
     las = laspy.read(file_path)
@@ -33,6 +32,7 @@ def get_pcd(file_path):
     pcd.colors = o3d.utility.Vector3dVector(colors)
     return pcd
 
+# calculate grid median with KDTree
 def calculate_grid(points, x_min, y_min, col_width, row_width, n_rows, n_cols):
     kdtree = cKDTree(points[:, :2])
 
@@ -114,7 +114,7 @@ def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z
     # result_path_windows = f'D:/blankspace/blankservices/result_store/{result_name}_{task_id}.png'
 
     plt.savefig(result_path, dpi=dpi)
-
+    plt.close()
     
     # return result_path_windows
 
@@ -175,3 +175,58 @@ def calculator(source_path, target_path, task_id, grid_size=0.1):
     result_path = plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z_max, width_meters, height_meters, sand_increase, sand_decrease, task_id)
 
     return total_volume_change, sand_increase, sand_decrease
+
+def find_optimal_gridsize(src_points, tgt_points, x_min, x_max, y_min, y_max,
+                            min_grid=0.001, max_grid=1, max_iter=20):
+    best_grid_size = max_grid
+    max_grids_with_points = -1
+    current_grid = max_grid
+
+        # STEP 1: / 2 until find  grids_with_points_current max
+    for i in range(max_iter):
+
+        n_cols = math.ceil((x_max - x_min) / current_grid)
+        n_rows = math.ceil((y_max - y_min) / current_grid)
+
+        src_avg_alt_mat, _ = calculate_grid(src_points, x_min, y_min, current_grid, current_grid, n_rows, n_cols)
+        tgt_avg_alt_mat, _ = calculate_grid(tgt_points, x_min, y_min, current_grid, current_grid, n_rows, n_cols)
+
+        delta_alt_mat = tgt_avg_alt_mat - src_avg_alt_mat
+        grids_with_points_current = np.count_nonzero(~np.isnan(delta_alt_mat)) 
+
+        print(f"Iteration {i}: grid_size = {current_grid:.4f}, count = {grids_with_points_current}")
+
+        if grids_with_points_current > max_grids_with_points:
+            max_grids_with_points = grids_with_points_current
+            best_grid_size = current_grid
+        else:
+            break  # stop / 2 เมื่อเจอค่าที่ลดลง
+
+        current_grid /= 2 
+        if current_grid < min_grid:
+            break
+
+    # STEP 2: list grid size 10% (+ - 5 ค่า)
+    adding = [best_grid_size * (1 + (j * 0.1)) for j in range(-5, 6) if best_grid_size * (1 + (j * 0.1)) >= min_grid]
+    print(f"Adding variance: {adding}")
+
+    for new_grid in adding:
+        if new_grid > max_grid:
+            continue  # ข้ามค่าที่เกิน max_grid
+
+        n_cols = math.ceil((x_max - x_min) / new_grid)
+        n_rows = math.ceil((y_max - y_min) / new_grid)
+
+        src_avg_alt_mat, _ = calculate_grid(src_points, x_min, y_min, new_grid, new_grid, n_rows, n_cols)
+        tgt_avg_alt_mat, _ = calculate_grid(tgt_points, x_min, y_min, new_grid, new_grid, n_rows, n_cols)
+
+        delta_alt_mat = tgt_avg_alt_mat - src_avg_alt_mat
+        count_new = np.count_nonzero(~np.isnan(delta_alt_mat))
+
+        print(f"  --> grid_size = {new_grid:.4f}, count = {count_new}")
+
+        if count_new > max_grids_with_points:
+            max_grids_with_points = count_new
+            best_grid_size = new_grid
+    
+    return round(best_grid_size, 4)

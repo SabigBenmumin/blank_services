@@ -176,7 +176,7 @@ def calculator(source_path, target_path, task_id, grid_size=0.1):
 
     return total_volume_change, sand_increase, sand_decrease
 
-def find_optimal_gridsize(src_points, tgt_points, x_min, x_max, y_min, y_max,
+def cal_optimal_gridsize(src_points, tgt_points, x_min, x_max, y_min, y_max,
                             min_grid=0.001, max_grid=1, max_iter=20):
     best_grid_size = max_grid
     max_grids_with_points = -1
@@ -230,3 +230,22 @@ def find_optimal_gridsize(src_points, tgt_points, x_min, x_max, y_min, y_max,
             best_grid_size = new_grid
     
     return round(best_grid_size, 4)
+
+def get_optimal_gridsize(source_path, target_path):
+
+    src_pcd = get_pcd(source_path)
+    tgt_pcd = get_pcd(target_path)
+
+    src_points = np.asarray(src_pcd.points)
+    tgt_points = np.asarray(tgt_pcd.points)
+
+    src_x_min, src_x_max = min(src_points[:, 0]), max(src_points[:, 0])
+    src_y_min, src_y_max = min(src_points[:, 1]), max(src_points[:, 1])
+    tgt_x_min, tgt_x_max = min(tgt_points[:, 0]), max(tgt_points[:, 0])
+    tgt_y_min, tgt_y_max = min(tgt_points[:, 1]), max(tgt_points[:, 1])
+
+    gbl_x_min, gbl_x_max = min(src_x_min, tgt_x_min), max(src_x_max, tgt_x_max)
+    gbl_y_min, gbl_y_max = min(src_y_min, tgt_y_min), max(src_y_max, tgt_y_max)
+
+    grid_size = cal_optimal_gridsize(src_points, tgt_points, gbl_x_min, gbl_x_max, gbl_y_min, gbl_y_max)
+    return grid_size

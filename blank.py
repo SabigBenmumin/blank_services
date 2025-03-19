@@ -118,7 +118,70 @@ def plot_graph(src_avg_alt_mat, tgt_avg_alt_mat, delta_alt_mat, gbl_z_min, gbl_z
     
     # return result_path_windows
 
-def calculator(source_path, target_path, task_id, grid_size=0.1):
+def convert_nparray2las(array: np.ndarray, task_id, threashold_min=-0.1, threashold_max=0.1):
+    import matplotlib.cm as cm
+
+    rows, cols = array.shape
+
+    x_coords, y_coords = np.meshgrid(np.arange(cols), np.arange(rows))
+
+    mask = ~np.isnan(array)
+    x_valid = x_coords[mask]
+    y_valid = y_coords[mask]
+    z_valid = array[mask]
+
+    norm = Normalize(vmin=threashold_min, vmax=threashold_max)
+    cmap = plt.cm.bwr
+
+    colors = cmap(norm(z_valid))[:, :3]
+    point_cloud = np.column_stack((x_valid, y_valid, z_valid))
+    header = laspy.LasHeader(point_format=2, version="1.2")
+
+    las = laspy.LasData(header)
+
+    las.x = point_cloud[:, 0]
+    las.y = point_cloud[:, 1]
+    las.z = point_cloud[:, 2]
+
+    las.red = (colors[:, 0] * 65535).astype(np.uint16)
+    las.green = (colors[:, 1] * 65535).astype(np.uint16)
+    las.blue = (colors[:, 2] * 65535).astype(np.uint16)
+    # las.red = (colors[:, 0] * 65535).astype(np.unit16)
+    # las.green = (colors[:, 1] * 65535).astype(np.unit16)
+    # las.blue = (colors[:, 2] * 65535).astype(np.unit16)
+
+    result_path = f'/mnt/d/blankspace/blankservices/result_store/result_{task_id}.las'
+    las.write(result_path)
+
+
+def save_nparray(array, task_id, format='npy'):
+    """
+    บันทึก numpy array เป็นไฟล์ในรูปแบบต่างๆ
+
+    Parameters:
+        array (numpy.ndarray): อาร์เรย์ที่ต้องการบันทึก
+        filename (str): ชื่อไฟล์ที่จะบันทึก
+        format (str): รูปแบบของไฟล์ (npy, npz, csv, txt, json)
+    
+    Returns:
+        None
+    """
+    path = f'/mnt/d/blankspace/blankservices/result_store/result_{task_id}'
+    if format == 'npy':
+        np.save(path, array)
+    elif format == 'npz':
+        np.savez(path, array=array)
+    elif format == 'csv' or format == 'txt':
+        np.savetxt(path, array, delimiter=',')
+    elif format == 'json':
+        import json
+        with open(path, 'w') as f:
+            json.dump(array.tolist(), f)
+    else:
+        raise ValueError("Unsupported format! ใช้ npy, npz, csv, txt, หรือ json เท่านั้น")
+
+
+def calculator(source_path, target_path, task_id, grid_size=0.1, save_las = False, save_npy = False):
     src_pcd = get_pcd(source_path)
     tgt_pcd = get_pcd(target_path)
 
@@ -158,6 +221,10 @@ def calculator(source_path, target_path, task_id, grid_size=0.1):
         tgt_avg_alt_mat, tgt_point_counts = calculate_grid(tgt_points, gbl_x_min, gbl_y_min, COL_WIDTH, ROW_WIDTH, n_rows, n_cols)
     
     delta_alt_mat = tgt_avg_alt_mat - src_avg_alt_mat
+    if save_npy:
+        save_nparray(delta_alt_mat, task_id, 'npy')
+    if save_las == True:
+        convert_nparray2las(delta_alt_mat, task_id=task_id)
 
     cell_area = COL_WIDTH * ROW_WIDTH
     # volume_change = (np.array(tgt_avg_alt_mat) - np.array(src_avg_alt_mat)) * cell_area
